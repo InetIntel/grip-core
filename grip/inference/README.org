@@ -1,0 +1,36 @@
+* Inference Engine and Runner
+
+** test coverage
+
+| inference function         | has test ? |
+|----------------------------+------------|
+| _get_default_inference     | yes        |
+| _infer_discard_events      | yes        |
+| _infer_bug_events          | yes        |
+| _infer_private_asn         | yes        |
+| _infer_reserved_space      | yes        |
+| _infer_siblings            | yes        |
+| _infer_partial_siblings    | yes        |
+| _infer_dps_asn             | yes        |
+| _infer_less_specific       | yes        |
+| _infer_all_newcomers       | yes        |
+| _infer_very_specific       | yes        |
+| _infer_moas_transition     | yes        |
+| _infer_oldcomers_on_paths  | yes        |
+| _infer_super_sub_paths     | yes        |
+| _infer_suspicious_asns     | yes        |
+| _infer_edges               | yes        |
+| _infer_misconfig           | yes        |
+| _infer_potential_pollution | yes        |
+| _infer_relationship        | yes        |
+| _infer_prefix              | yes        |
+| _infer_ixp_colo_prefix     | yes        |
+|                            |            |
+** Rerun Inference Engine
+
+*** Fix Objects with Missing Inference Results
+
+Run with ~-f~ (~fix_missing~ for full parameter name).
+
+Example parameters ~-s 1604400800 -t defcon -p 1~: fixing DEFCON events with
+missing inference results from ~1604400800~ till now with one parallel process.

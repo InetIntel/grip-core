@@ -1,0 +1,56 @@
+#+TITLE: Active Probing Module for BGP Hijacks Project
+
+* High-level Workflow
+
+#+BEGIN_SRC plantuml :file figs/uml.png
+
+|driver|
+start
+if(listen) then (yes)
+    :listen_kafka;
+else (no)
+    :process_file;
+endif
+while(has event?)
+    :event from json;
+    partition process_event {
+        :select probe IPs;
+        :execute measurement;
+        :create request;
+        :wait for results;
+        :write metrics;
+    }
+endwhile
+
+stop
+
+#+END_SRC
+
+#+RESULTS:
+[[file:figs/uml.png]]
+
+[[figs/uml.png]]
+
+* Traceroute-worthy Tags
+
+** MOAS
+
+| name                | description |
+|---------------------+-------------|
+| moas-reserved-space |             |
+| moas-short-prefix   |             |
+| moas-unknown        |             |
+
+** SUBMOAS
+| name | description |
+|------+-------------|
+|      |             |
+** DEFCON
+| name | description |
+|------+-------------|
+|      |             |
+** EDGES
+
+| name | description |
+|------+-------------|
+|      |             |

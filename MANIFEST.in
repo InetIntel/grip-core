@@ -1,0 +1,2 @@
+recursive-include grip *.yaml
+recursive-include grip *.txt

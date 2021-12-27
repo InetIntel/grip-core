@@ -1,0 +1,243 @@
+######## #### traceroute worthy tags
+########
+tr_yes:
+  - tags: [not-previously-announced-by-any-newcomer]
+    explain: "newcomer has not previously announced the prefix before, worth checking out"
+  - tags: [sub-path-longer]
+    explain: "sub-prefix travels longer in AS paths"
+  - tags: [reserved-space]
+    explain: "reserved prefix should not be announced"
+  - tags: [blacklist-asn]
+    explain: "the AS was reported for malicious behaviors before"
+  - tags: [spamhaus-asn-drop]
+    explain: "the AS is on spamhaus asn-drop list"
+  - tags: [all-newcomers-next-to-an-oldcomer, newcomer-small-asn]
+    explain: "fat-finger as path prepending"
+  - tags: [origin-small-edit-distance]
+    explain: "fat-finger wrong as number"
+  - tags: [prefix-small-edit-distance]
+    explain: "fat-finger wrong prefix"
+  - tags: [hegemony-valley-paths]
+    explain: "contain hegemony valley in paths"
+  - tags: [hegemony-rare-path-segments]
+    explain: "contain unusual path segments in paths"
+  - tags: [rpki-all-newcomer-invalid-roa]
+    explain: "newcomer announces prefix with invalid ROA record"
+  - tags: [rpki-some-newcomer-invalid-roa]
+    explain: "newcomer announces prefix with invalid ROA record"
+  - tags: [rpki-all-oldcomer-invalid-roa]
+    explain: "oldcomer announces prefix with invalid ROA record"
+  - tags: [rpki-some-oldcomer-invalid-roa]
+    explain: "oldcomer announces prefix with invalid ROA record"
+
+########
+#### traceroute NOT worthy tags
+########
+tr_no:
+  - tags: [short-prefix]
+    explain: "super-prefix is too large, likely be noise with large quantity, do not traceroute"
+  - tags: [ipv6-prefix]
+    explain: "no ipv6 prefix should be tracerouted"
+  - tags: [recurring-pfx-event]
+    explain: "recurring events should be ignored"
+  - tags: [due-to-as-trans]
+    explain: "AS_TRANS is a placeholder AS for 32-bit ASN, this event should be ignored"
+  - tags: [no-newcomer]
+    explain: "we cannot figure out which AS is the newcomer in the event, no need to further traceroute"
+  - tags: [all-newcomers]
+    explain: "all origins are newcomer to the prefix, no victims, no need to traceroute"
+  - tags: [due-to-private-asn]
+    explain: ""
+  - tags: [all-newcomers-private-asn]
+    explain: ""
+  - tags: [all-newcomers-as-trans]
+    explain: ""
+  - tags: [all-newcomers-private-and-as-trans]
+    explain: ""
+  - tags: [due-to-dps-asn]
+    explain: "event caused by dps asns"
+  - tags: [due-to-private-and-as-trans]
+    explain: "event caused by private and as-trans asns"
+  - tags: [all-newcomers-dps-asn]
+    explain: ""
+  - tags: [previously-announced-by-all-newcomers]
+    explain: ""
+  - tags: [ixp-prefix]
+    explain: ""
+  - tags: [single-ip]
+    explain: ""
+  - tags: [long-prefix]
+    explain: "very long prefix does not attack much traffic and are likely to be triggered by normal traffic engineering"
+    apply_to: ["defcon"]
+  - tags: [newcomer-less-specific]
+    explain: "less specific prefix cannot attract traffic"
+  - tags: [all-siblings]
+    explain: ""
+  - tags: [newcomer-some-siblings]
+    explain: ""
+  - tags: [newcomer-all-siblings]
+    explain: ""
+  - tags: [single-rel-upstream-chain]
+    explain: ""
+  - tags: [all-newcomers-are-providers]
+    explain: ""
+  - tags: [all-newcomers-are-customers]
+    explain: ""
+  - tags: [all-newcomers-are-peers]
+    explain: ""
+  - tags: [all-newcomers-are-rel-upstream]
+    explain: ""
+  - tags: [all-newcomers-are-rel-downstream]
+    explain: ""
+  - tags: [ixp-colocated]
+    explain: ""
+  - tags: [adj-previously-observed-opposite]
+    explain: ""
+  - tags: [adj-previously-observed-exact]
+    explain: ""
+  - tags: [new-bidirectional]
+    explain: ""
+  - tags: [sub-path-shorter]
+    explain: ""
+  - tags: [no-common-monitors]
+    explain: ""
+  - tags: [superpaths-include-subpaths]
+    explain: ""
+  - tags: [not-previously-announced]
+    explain: ""
+  - tags: [no-newcomer-pfxs]
+    explain: ""
+  - tags: [submoas-causing-moas-subpfx]
+    explain: "if sub/super prefix in a subMOAS event is also in a MOAS event, let the MOAS event trigger the traceroutes"
+  - tags: [submoas-causing-moas-superpfx]
+    explain: "if sub/super prefix in a subMOAS event is also in a MOAS event, let the MOAS event trigger the traceroutes"
+  - tags: [submoas-covered-by-moas-subpfx]
+    explain: ""
+  - tags: [submoas-covered-by-moas-superpfx]
+    explain: ""
+  - tags: [moas-transition]
+    explain: "moas transition can only be tagged at the event finish time, traceroute decision is not applicable"
+  - tags: [moas-potential-convergence]
+    explain: "moas likely caused by bgp convergence"
+  - tags: [moas-potential-transfer]
+    explain: "moas likely caused by prefix ownership transfer"
+  - tags: [less-origins, no-newcomer]
+    explain: "shrinking moas"
+  - tags: [rpki-all-newcomer-valid-roa]
+    explain: "all newcomers has valid ROA record for the prefix in question"
+tr_na:
+  - tags: [notags]
+    explain: ""
+  - tags: [outdated-info]
+    explain: ""
+  - tags: [less-origins]
+    explain: ""
+  - tags: [has-private-asn]
+    explain: ""
+  - tags: [some-newcomers-private-asn]
+    explain: ""
+  - tags: [has-dps-asn]
+    explain: ""
+  - tags: [some-newcomers-dps-asn]
+    explain: ""
+  - tags: [previously-announced-by-some-newcomers]
+    explain: ""
+  - tags: [some-siblings]
+    explain: ""
+  - tags: [all-newcomers-are-rel-neighbor]
+    explain: ""
+  - tags: [some-newcomers-are-providers]
+    explain: ""
+  - tags: [some-newcomers-are-customers]
+    explain: ""
+  - tags: [some-newcomers-are-peers]
+    explain: ""
+  - tags: [some-newcomers-are-rel-neighbor]
+    explain: ""
+  - tags: [some-newcomers-are-rel-upstream]
+    explain: ""
+  - tags: [some-newcomers-are-rel-downstream]
+    explain: ""
+  - tags: [all-newcomers-stub-ases]
+    explain: ""
+  - tags: [some-newcomers-stub-ases]
+    explain: ""
+  - tags: [all-victims-stub-ases]
+    explain: ""
+  - tags: [some-victims-stub-ases]
+    explain: ""
+  - tags: [newcomer-small-asn]
+    explain: ""
+  - tags: [all-origins-same-country]
+    explain: ""
+  - tags: [all-newcomer-pfxs]
+    explain: "does not imply that all ASes are newcomers"
+
+  - tags: [no-common-hops-super-pfx]
+    explain: ""
+  - tags: [no-common-hops-sub-pfx]
+    explain: ""
+  - tags: [sub-path-equal]
+    explain: ""
+  - tags: [newcomer-more-specific]
+    explain: ""
+
+  - tags: [all-newcomers-next-to-an-oldcomer]
+    explain: ""
+  - tags: [oldcomers-always-on-newcomer-originated-paths]
+    explain: ""
+  - tags: [newcomers-always-on-oldcomer-originated-paths]
+    explain: ""
+  - tags: [oldcomer-path-prepending]
+    explain: ""
+  - tags: [long-prefix]
+    explain: "very long prefix does not attack much traffic and are likely to be triggered by normal traffic engineering"
+    apply_to: ["moas","submoas","edges"]
+  - tags: [all-newcomer-announced-no-pfxs]
+    explain: ""
+  - tags: [some-newcomer-announced-no-pfxs]
+    explain: ""
+  - tags: [edge-small-edit-distance]
+    explain: ""
+    
+  - tags: [all-new-edge-at-origin]
+    explain: ""
+  - tags: [no-new-edge-at-origin]
+    explain: ""
+  - tags: [all-new-edge-at-collectors]
+    explain: ""
+  - tags: [skipped-pfx-event]
+    explain: ""
+  - tags: [no-origins-prev-view]
+    explain: "no origins in the previous view"
+  - tags: [same-origins-prev-view]
+    explain: "all origins are the same between current view and previous view"
+
+  # as-trans
+  - tags: [has-as-trans]
+    explain: ""
+  - tags: [some-newcomers-as-trans]
+    explain: ""
+  # rpki
+  - tags: [rpki-all-oldcomer-valid-roa]
+    explain: ""
+  - tags: [rpki-some-newcomer-valid-roa]
+    explain: ""
+  - tags: [rpki-all-newcomer-unknown-roa]
+    explain: ""
+  - tags: [rpki-some-newcomer-unknown-roa]
+    explain: ""
+  - tags: [rpki-newcomer-invalid-roa-due-to-as]
+    explain: ""
+  - tags: [rpki-newcomer-invalid-roa-due-to-length]
+    explain: ""
+  - tags: [rpki-some-oldcomer-valid-roa]
+    explain: ""
+  - tags: [rpki-all-oldcomer-unknown-roa]
+    explain: ""
+  - tags: [rpki-some-oldcomer-unknown-roa]
+    explain: ""
+  - tags: [rpki-oldcomer-invalid-roa-due-to-as]
+    explain: ""
+  - tags: [rpki-oldcomer-invalid-roa-due-to-length]
+    explain: ""
