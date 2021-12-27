@@ -53,7 +53,7 @@ CH_SUSPICIOUS_HIGH_TMPL = "bgp.hijacks.events.inference.%s.suspicion.suspicion_h
 CH_SUSPICIOUS_GREY_TMPL = "bgp.hijacks.events.inference.%s.suspicion.suspicion_grey"
 CH_SUSPICIOUS_LOW_TMPL = "bgp.hijacks.events.inference.%s.suspicion.suspicion_low"
 
-KAFKA_POOLING_INTERVAL = 5
+KAFKA_POOLING_INTERVAL = 10
 DEBUG = False
 
 
@@ -165,7 +165,10 @@ class InferenceCollector:
 
             # quickly polling all pending messages from kafka before processing results
             msg = self.kafka_helper.poll(KAFKA_POOLING_INTERVAL)
-            if msg is None or msg.error():
+            if msg is None:
+                continue
+            if msg.error():
+                print(msg.error())
                 continue
             msg_str = msg.value().decode("utf-8")
             event_ready_msg = EventOnElasticMsg.from_str(msg_str)

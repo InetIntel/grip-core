@@ -39,7 +39,9 @@ from grip.tagger.tagger_defcon import DefconTagger
 from grip.tagger.tagger_edges import EdgesTagger
 from grip.tagger.tagger_moas import MoasTagger
 from grip.tagger.tagger_submoas import SubMoasTagger
-from grip.utils.swift import SwiftUtils
+from grip.utils.fs import fs_get_consumer_filename_from_ts
+
+LIVE_PATH = "/data/bgp/live/"
 
 CLASSIFIERS = {
     "defcon": DefconTagger,
@@ -127,10 +129,10 @@ def main():
     if opts.pfx_events_file:
         tagger.process_consumer_file(consumer_filename=opts.pfx_events_file, cache_files=to_cache)
     elif opts.timestamp:
-        # swift://bgp-hijacks-moas/year=2019/month=02/day=21/hour=14/moas.1550760000.events.gz
         if int(time.time()) - int(opts.timestamp) > REDIS_AVAIL_SECONDS:
             tagger.in_memory = True
-        filename = SwiftUtils.get_consumer_filename_from_ts(opts.type, opts.timestamp)
+        filename = fs_get_consumer_filename_from_ts(LIVE_PATH, opts.type,
+                opts.timestamp)
         tagger.process_consumer_file(consumer_filename=filename, cache_files=to_cache)
     else:
         tagger.listen(

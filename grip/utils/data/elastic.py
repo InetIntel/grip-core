@@ -50,7 +50,7 @@ def convert_data_int_to_str(date, is_year):
     else:
         return "{:02d}".format(date)
 
-
+# XXX do these need to be renamed?
 MAIN_INDEX_NAME_PATTERN = 'observatory-v3-events-{}-{}-{}'
 TEST_INDEX_NAME_PATTERN = 'observatory-v3-test-events-{}-{}-{}'
 
@@ -61,9 +61,8 @@ class ElasticConn:
     def __init__(self, debug=False):
         self.DEBUG = debug
         self.es = Elasticsearch([
-            {'host': 'clayface.caida.org', 'port': 9200},
-            {'host': 'scarecrow.caida.org', 'port': 9200},
-            {'host': 'croc.caida.org', 'port': 9200}],
+            {'host': 'panarea1.cc.gatech.edu', 'port': 9200},
+            {'host': 'panarea2.cc.gatech.edu', 'port': 9200}],
             timeout=10, max_retries=3, retry_on_timeout=True
         )
         if not self.es.ping():

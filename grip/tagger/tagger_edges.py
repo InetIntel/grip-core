@@ -56,7 +56,7 @@ class EdgesTagger(Tagger):
         the exact direction and d2 indicates the opposite direction.
         """
         edges_temp = collections.defaultdict(lambda: [0, 0])
-        with wandio.open(consumer_filename, options=self.swift_auth_options) as fh:
+        with wandio.open(consumer_filename) as fh:
             # for each line in the file
             for line in fh:
                 # ignore commented lines

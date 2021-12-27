@@ -40,8 +40,8 @@ from grip.tagger.tagger_moas import MoasTagger
 from grip.tagger.tagger_submoas import SubMoasTagger
 from grip.tagger.tags import tagshelper
 from grip.utils.data.elastic import ElasticConn
-from grip.utils.swift import SwiftUtils
 
+from grip.utils.fs import fs_get_consumer_filename_from_ts
 
 class TestTagger(unittest.TestCase):
     """

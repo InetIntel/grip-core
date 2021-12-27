@@ -39,18 +39,18 @@ import os
 
 from dotenv import load_dotenv, find_dotenv
 
-KAFKA_BROKERS = "grip-coordinator.int.limbo.caida.org"
+KAFKA_BROKERS = "capri.cc.gatech.edu:9192"
 
 # Kafka topic and group template
 # observatory-%COMPONENT%-%EVENT_TYPE%
-KAFKA_TOPIC_TEMPLATE = "observatory-%s-%s"
-KAFKA_DEBUG_TOPIC_TEMPLATE = "observatory-%s-%s-DEBUG"
+KAFKA_TOPIC_TEMPLATE = "grip-%s-%s"
+KAFKA_DEBUG_TOPIC_TEMPLATE = "grip-%s-%s-DEBUG"
 
 # ElasticSearch defaults
-ES_VIEW_METRICS_INDEX = "observatory-operations-view-metrics"
-ES_OPS_EVENTS_INDEX = "observatory-operations-ops-events"
+ES_VIEW_METRICS_INDEX = "grip-operations-view-metrics"
+ES_OPS_EVENTS_INDEX = "grip-operations-ops-events"
 
-RPKI_DATA_DIR = "/data/rpki/roas"
+RPKI_DATA_DIR = "/data/bgp/rpki/rpki/roas"
 
 # Active probing
 ACTIVE_MAX_PFX_EVENTS = 2  # max num prefixes to trace per event

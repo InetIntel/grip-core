@@ -51,7 +51,7 @@ def update_adj(ann):
 def update_pfx2as_newcomer(ann):
     pfx2as = grip.redis.Pfx2AsNewcomer()
     # insert this data
-    pfx2as.insert_pfx_timestamp(int(ann.timestamp))
+    pfx2as.insert_pfx_file(ann.path)
     # check if there is anything missing now that we have slid the window
     # 2018-08-22 AK comments because when we have a lot of data missing from
     # swift this can take too long. in case the DB is missing some data that
@@ -75,7 +75,7 @@ def check_and_create_lockfile(filename):
 
 def update_pfx2as_historical(ann):
     pfx2as = grip.redis.Pfx2AsHistorical()
-    pfx2as.insert_pfx_timestamp(int(ann.timestamp))
+    pfx2as.insert_pfx_file(ann.path)
 
     # comment out the following `remove_outside_window` command
     # we don't need to save space anymore, the more data the better now
@@ -179,9 +179,6 @@ def main():
         delay = time.time() - int(announcement.timestamp)
         if delay > 45 * 60:
             logging.warning("Inserting outdated info (%d)" % int(announcement.timestamp))
-            os.system("/usr/local/bin/grip-slackmsg.sh redis-updater-%s "
-                      "inserting outdated data: %d. delay: %ds" %
-                      (db_type, int(announcement.timestamp), delay))
         cfg["update"](announcement)
         if shutdown["count"] > 0:
             logging.info("Shutting down")
