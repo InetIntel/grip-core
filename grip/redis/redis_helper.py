@@ -43,7 +43,7 @@ import redis
 
 class RedisHelper:
 
-    DEFAULT_HOST = "grip-redis.int.limbo.caida.org"
+    DEFAULT_HOST = "giglio.cc.gatech.edu"
     # change the default host to local host to avoid accidentally modify data on other machines
     # DEFAULT_HOST = "localhost"
 

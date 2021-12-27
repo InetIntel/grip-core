@@ -93,17 +93,18 @@ class KafkaHelper:
 
         assert (isinstance(topics, list))
 
+        from confluent_kafka import OFFSET_BEGINNING
         self.consumer = confluent_kafka.Consumer({
             "bootstrap.servers": self.brokers,
             "group.id": group_id,
             "auto.offset.reset": offset,
-            "max.poll.interval.ms": 600000,  # 10 minutes between polls
+            # "max.poll.interval.ms": 600000,  # 10 minutes between polls
             # do not automatically commit offsets to kafka
             # users to make sure to  call consumer.commit() manually
             "enable.auto.commit": autocommit,
         })
         self.consumer.subscribe(topics)
-        logging.info("subscribing to kafka topic: {}; group: {}".format(",".join(topics), group_id))
+        logging.info("subscribing to kafka topic: {}; group: {}, broker: {}, offset: {}".format(",".join(topics), group_id, self.brokers, offset))
 
     def commit_offset(self):
         assert (self.consumer is not None)

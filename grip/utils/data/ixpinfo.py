@@ -67,7 +67,7 @@ class Base(object):
 def load_settings():
     settings = {
         "db": {
-            'drivername': 'postgres',
+            'drivername': 'postgresql',
             'host': 'localhost',
             'port': '5432',
             'username': 'caidadata',

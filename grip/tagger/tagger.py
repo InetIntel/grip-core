@@ -59,7 +59,7 @@ from grip.utils.messages import EventOnElasticMsg
 from .methods import TaggingMethodology
 from .tags.friends import OrgFriends
 from ..utils.data.rpki import RpkiUtils
-from ..utils.swift import SwiftUtils
+from ..utils.fs import fs_get_timestamp_from_file_path, fs_generate_file_list
 
 MAX_PFX_EVENTS_PER_EVENT_TO_TAG = {
     "edges": 1,  # there is little point checking the same new-edge for different prefixes
@@ -99,7 +99,8 @@ class Tagger(object):
         # datasets and methodology
         self.datasets = {
             # production site datasets
-            "ixp_info": IXPInfo() if not self.offsite_mode else None,
+            # "ixp_info": IXPInfo() if not self.offsite_mode else None,
+            "ixp_info": None,
             "adjacencies": Adjacencies() if not self.offsite_mode else None,
             "pfx2asn_newcomer": Pfx2AsNewcomer() if not self.offsite_mode else None,
             "pfx2asn_historical": Pfx2AsHistorical() if not self.offsite_mode else None,
@@ -117,8 +118,6 @@ class Tagger(object):
         self.methodology = TaggingMethodology(datasets=self.datasets)
         self.window = CacheWindow()
 
-        self.swift = None
-        self.swift_auth_options = None
         # data utilities
         if not self.offsite_mode:
             # elasticsearch
@@ -129,9 +128,6 @@ class Tagger(object):
             self.kafka_producer_topic = kafka_template % ("tagger", name)
             self.kafka = KafkaHelper()
             self.kafka.init_producer(topic=self.kafka_producer_topic)
-            # swift
-            self.swift = SwiftUtils()
-            self.swift_auth_options = self.swift.auth_options
 
         # time tracking
         self.start_time = None
@@ -190,7 +186,7 @@ class Tagger(object):
         pfx_events = []
         all_cnt, new_cnt, fin_cnt, skip_cnt, recur_cnt = 0, 0, 0, 0, 0
         try:
-            for line in wandio.open(consumer_filename, options=self.swift_auth_options):
+            for line in wandio.open(consumer_filename):
                 # ignore commented lines
                 if line.startswith("#"):
                     continue
@@ -268,9 +264,9 @@ class Tagger(object):
         event.summary.update()
         return is_recurring
 
-    def _produce_event(self, event, swift_output_fh=None):
+    def _produce_event(self, event, output_fh=None):
         """
-        Output single event to swift file and produce the event to kafka for the components in the pipeline to consumer
+        Output single event to file and produce the event to kafka for the components in the pipeline to consumer
 
         :param event: the event object to produce
         """
@@ -301,12 +297,12 @@ class Tagger(object):
             tr_worthy=event.summary.tr_worthy,
         )
         self.kafka.produce(kafka_msg.to_str(), topic=self.kafka_producer_topic, flush=True)
-        if swift_output_fh is not None:
-            swift_output_fh.write((event.as_json() + "\n").encode())
+        if output_fh is not None:
+            output_fh.write((event.as_json() + "\n").encode())
 
     def _dump_events(self, new_events, finished_event):
         """
-        Output all events extracted in one consumer file to swift and kafka
+        Output all events extracted in one consumer file to disk and kafka
         """
         assert isinstance(new_events, list)
 
@@ -337,12 +333,11 @@ class Tagger(object):
             start_ts = int(time.time())
         cache_files = []
         logging.info("looking for consumer files to cache...")
-        for swift_file_name in self.swift.swift_files_generator("bgp-hijacks-{}".format(self.name)):
-            ts = int(swift_file_name.split("/")[4].split('.')[1])
+        for file_name in fs_generate_file_list("/data/bgp/live/{}".format(self.name)):
+            ts = fs_get_timestamp_from_file_path(file_name)
 
-            swift_file_name = "swift://bgp-hijacks-{}/{}".format(self.name, swift_file_name)
             if ts < start_ts and ts >= start_ts - self.window.window_size:
-                cache_files.append(swift_file_name)
+                cache_files.append(file_name)
                 continue
         logging.info("caching total of %d consumer files" % len(cache_files))
         for fn in cache_files:
@@ -350,10 +345,10 @@ class Tagger(object):
 
     def process_consumer_file(self, consumer_filename, cache_files=False):
         """
-        Entry point function for the tagging process. it takes a consumer output file from Swift, extracts events,
+        Entry point function for the tagging process. it takes a consumer output file from disk, extracts events,
         and writes the events to Elasticsearch and propagates events down the pipeline using Kafka
 
-        :param consumer_filename: the consumer file from swift
+        :param consumer_filename: the consumer file from disk
         :param cache_files: whether to cache consumer files, default is False. Set to True if run manually
         :return:
         """
@@ -447,7 +442,7 @@ class Tagger(object):
             self.es_conn.index_view_metrics(view_metrics, debug=self.DEBUG)
         elif self.output_file:
             logging.info("writing tagged events to file: {}".format(self.output_file))
-            with wandio.open(self.output_file, "w", options=self.swift_auth_options) as of:
+            with wandio.open(self.output_file, "w") as of:
                 json.dump([e.as_dict() for e in new_events.values()], of, indent=4)
 
         logging.info("Done processing %s data", self.name)
@@ -469,7 +464,7 @@ class Tagger(object):
         )
 
         for in_ann in listener.listen():
-            self.process_consumer_file(in_ann.uri, cache_files=cache_files)
+            self.process_consumer_file(in_ann.path, cache_files=cache_files)
             if not listener.auto_commit:
                 # if the listener is not set to autocommit when retrieving data from kakfa, we should commit the offset
                 # manually here as shown below. if the autocommit is set to be True, then no need to call commit_offset()

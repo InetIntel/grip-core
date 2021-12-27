@@ -34,7 +34,6 @@
 
 import argparse
 import datetime
-import swiftclient
 import wandio
 import logging
 
@@ -47,8 +46,8 @@ REDIS_A2P_PFX = "%s:AS" % REDIS_ROOT_PFX  # as2pfx redis prefix
 TIMESTAMPS_KEY = "%s:TIMESTAMPS" % REDIS_ROOT_PFX
 TIME_GRANULARITY = 300
 DEFAULT_WINDOW_HOURS = 24
-SWIFT_CONTAINER = "bgp-hijacks-pfx-origins"
-SWIFT_OBJ_TMPL = "year=%04d/month=%02d/day=%02d/hour=%02d/pfx-origins.%d.gz"
+PFX_ORIGINS_DATA_DIRECTORY = "/data/bgp/live/pfx-origins/production"
+PFX_ORIGINS_FILE_NAME_TMPL = "year=%04d/month=%02d/day=%02d/hour=%02d/pfx-origins.%d.gz"
 
 
 class Pfx2AsNewcomer:
@@ -60,7 +59,7 @@ class Pfx2AsNewcomer:
         else:
             self.rh = RedisHelper(port=port, db=db, log_level=log_level)
 
-    def get_timestamps(self, as_set=False):
+    def _get_timestamps(self, as_set=False):
         # MW: it checks the timestamp for pfx2as data only (not as2pfx)
         timestamps = [int(ts[1]) for ts in self.rh.zrange(TIMESTAMPS_KEY, 0, -1, withscores=True)]
 
@@ -71,7 +70,7 @@ class Pfx2AsNewcomer:
 
     def get_most_recent_timestamp(self, max_ts):
         # try to get the maximum time-stamp in redis here.
-        timestamps = self.get_timestamps()
+        timestamps = self._get_timestamps()
         # specified maximum timestamps, get the closest one
         recent_ts = None
         for t in reversed(timestamps):
@@ -82,10 +81,10 @@ class Pfx2AsNewcomer:
         return recent_ts
 
     # returned window is EXCLUSIVE, INCLUSIVE
-    def get_current_window(self, timestamps=None):
+    def _get_current_window(self, timestamps=None):
         # ask redis for the timestamps key
         if timestamps is None:
-            timestamps = self.get_timestamps()
+            timestamps = self._get_timestamps()
         if timestamps is None or not len(timestamps):
             return None
         max_ts = timestamps[-1]
@@ -93,9 +92,9 @@ class Pfx2AsNewcomer:
         return min_ts, max_ts
 
     def get_outside_window(self, window=None):
-        timestamps = self.get_timestamps()
+        timestamps = self._get_timestamps()
         if window is None:
-            window = self.get_current_window(timestamps)
+            window = self._get_current_window(timestamps)
         if window is None:
             # if the window is empty, everything is outside
             return timestamps
@@ -107,11 +106,11 @@ class Pfx2AsNewcomer:
 
     def find_missing_inside_window(self, window=None):
         if window is None:
-            window = self.get_current_window()
+            window = self._get_current_window()
         if window is None:
             # window is empty, there can't be anything missing
             return []
-        tsset = self.get_timestamps(as_set=True)
+        tsset = self._get_timestamps(as_set=True)
         missing = []
         now = window[0] + TIME_GRANULARITY
         while now <= window[1]:
@@ -121,7 +120,7 @@ class Pfx2AsNewcomer:
         return missing
 
     def print_window_info(self):
-        window = self.get_current_window()
+        window = self._get_current_window()
         if window is None:
             window = (None, None)
         print("Current window: (%s, %s]" % window)
@@ -141,7 +140,7 @@ class Pfx2AsNewcomer:
             print("No timestamps missing inside window")
 
     def remove_outside_window(self):
-        window = self.get_current_window()
+        window = self._get_current_window()
         if not len(self.get_outside_window(window)):
             logging.info("Nothing to remove outside window")
             return
@@ -156,8 +155,8 @@ class Pfx2AsNewcomer:
         pipe = self.rh.get_pipeline()
         logging.info("Inserting pfx2as mappings from %s" % path)
 
-        cur_ts = self.get_timestamps(as_set=True)
-        window = self.get_current_window()
+        cur_ts = self._get_timestamps(as_set=True)
+        window = self._get_current_window()
 
         as2pfx_dict = {}
         file_timestamp = 0
@@ -183,7 +182,7 @@ class Pfx2AsNewcomer:
                     # convert the ip to a binary string
                     bin_pfx = self.rh.get_bin_pfx(prefix)
                     pipe.zadd("%s:%s" % (REDIS_P2A_PFX, bin_pfx), timestamp,
-                              "%x:%s" % ((timestamp / TIME_GRANULARITY), str(new_asn)))
+                              "%x:%s" % (int(timestamp / TIME_GRANULARITY), str(new_asn)))
 
                     # save as2pfx data into dictionary
                     if new_asn not in as2pfx_dict:
@@ -193,12 +192,7 @@ class Pfx2AsNewcomer:
             # loop through as2pfx_dict and write them into database
             for asn in as2pfx_dict:
                 pipe.zadd("%s:%s" % (REDIS_A2P_PFX, asn), file_timestamp,
-                          "%x:%s" % ((file_timestamp / TIME_GRANULARITY), ",".join(as2pfx_dict[asn])))
-
-        except swiftclient.exceptions.ClientException as e:
-            logging.error("Could not read pfx-origin file '%s'" % path)
-            logging.error(e.msg)
-            return
+                          "%x:%s" % (int(file_timestamp / TIME_GRANULARITY), ",".join(as2pfx_dict[asn])))
         except IOError as e:
             logging.error("Could not read pfx-origin file '%s'" % path)
             logging.error("I/O error: %s" % e.strerror)
@@ -213,10 +207,13 @@ class Pfx2AsNewcomer:
         pipe.execute()
 
     def insert_pfx_timestamp(self, unix_ts, force=False):
+        """
+        Given a unix-timestamp, find corresponding data file and load it to Redis.
+        """
         ts = datetime.datetime.utcfromtimestamp(unix_ts)
-        swift_obj = SWIFT_OBJ_TMPL % (ts.year, ts.month, ts.day, ts.hour, unix_ts)
-        swift_path = "swift://%s/%s" % (SWIFT_CONTAINER, swift_obj)
-        self.insert_pfx_file(swift_path, force=force)
+        data_file_name = PFX_ORIGINS_FILE_NAME_TMPL % (ts.year, ts.month, ts.day, ts.hour, unix_ts)
+        data_file_path = "%s/%s" % (PFX_ORIGINS_DATA_DIRECTORY, data_file_name)
+        self.insert_pfx_file(data_file_path, force=force)
 
     @staticmethod
     def _extract_res(redis_result):
@@ -289,47 +286,41 @@ def main():
     Utilities for populating the "newcomer" pfx2as redis database.
     """)
 
+    # core flags
     parser.add_argument('-f', "--file", action="store", default=None, help="pfx-origins file")
-
+    parser.add_argument('-w', "--window-hours", action="store", default=DEFAULT_WINDOW_HOURS,
+                        help='Length of the window (hours)')
     parser.add_argument('-t', "--timestamp", action="store", default=None, help="Insert data for given timestamp")
+    parser.add_argument('-v', "--verbose", action="store_true", default=False,
+                        help="Print debugging information")
+    parser.add_argument('-o', "--overwrite", action="store_true", default=False,
+                        help="Force insertion even if timestamp has already been inserted")
 
+    # redis-connection config
     parser.add_argument('-r', "--redis-host", action="store", default=None, help='Redis address')
-
     parser.add_argument('-p', "--redis-port", action="store", default=6379, help='Redis port')
-
     parser.add_argument('-d', "--redis-db", action="store", help='Redis database', default=1)
 
+    # cli utilities
     parser.add_argument('-l', "--lookup", action="store",
                         help="Look up the given prefix "
                              "(timestamp may be specified using --timestamp)")
-
     parser.add_argument('-L', "--lookup-as", action="store",
                         help="Look up the given AS number "
                              "(timestamp may be specified using --timestamp)")
-
     parser.add_argument('-e', "--exact", action="store_true", default=False,
                         help="Restrict lookups to exact matches")
-
     parser.add_argument('-n', "--latest", action="store_true", default=False,
                         help="Get only the most recent match")
 
-    parser.add_argument('-w', "--window-hours", action="store", default=DEFAULT_WINDOW_HOURS,
-                        help='Length of the window (hours)')
-
-    parser.add_argument('-c', "--clean", action="store_true", default=False,
-                        help="Remove data outside window")
-
+    # show info
     parser.add_argument('-s', "--show-window", action="store_true", default=False,
                         help="Show the current window")
-
     parser.add_argument('-m', "--missing", action="store_true", default=False,
                         help="Show missing data in the current window")
 
-    parser.add_argument('-v', "--verbose", action="store_true", default=False,
-                        help="Print debugging information")
-
-    parser.add_argument('-o', "--overwrite", action="store_true", default=False,
-                        help="Force insertion even if timestamp has already been inserted")
+    parser.add_argument('-c', "--clean", action="store_true", default=False,
+                        help="Remove data outside window")
 
     opts = parser.parse_args()
 

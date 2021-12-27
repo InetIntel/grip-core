@@ -158,9 +158,56 @@ class SwiftAnnouncement(Announcement):
         return "swift://%s/%s" % (self.container, self.object)
 
 
+class FileAnnouncement(Announcement):
+
+    def __init__(self, sender_type, sender_name, path, timestamp=None):
+        self.path = path
+        super(FileAnnouncement, self).__init__(
+            type="file",
+            sender_type=sender_type,
+            sender_name=sender_name,
+            timestamp=timestamp
+        )
+
+    @staticmethod
+    def from_txt(txt):
+        # sender_type sender_name path [timestamp]
+        # consumer $consumer $path $timestamp
+        fields = txt.split(" ")
+        if len(fields) != 3 and len(fields) != 4:
+            raise ValueError("FileAnnouncement text format: "
+                             "'sender_type sender_name path [timestamp]'")
+        timestamp = None
+        if len(fields) == 4:
+            timestamp = fields[-1]
+            # fields = fields[1:]
+        return FileAnnouncement(
+            sender_type=fields[0],
+            sender_name=fields[1],
+            path=fields[2],
+            timestamp=timestamp
+        )
+
+    def as_dict(self):
+        sdict = super(FileAnnouncement, self).as_dict()
+        sdict["path"] = self.path
+        return sdict
+
+    def as_json(self):
+        return json.dumps(self.as_dict())
+
+    def as_txt(self):
+        return "%s %s" % (super(FileAnnouncement, self).as_txt(), self.path)
+
+    @property
+    def uri(self):
+        return self.path
+
+
 ANNOUNCEMENT_CLASSES = {
     "db": DatabaseAnnouncement,
     "swift": SwiftAnnouncement,
+    "file": FileAnnouncement,
 }
 
 
@@ -239,7 +286,9 @@ class Listener:
             if msg is None:
                 continue
             if not msg.error():
-                ann = build_from_json(msg.value().decode("utf-8"))
+                text = msg.value().decode("utf-8")
+                print(text)
+                ann = build_from_json(text)
                 if not self._match_filters(ann):
                     continue
                 count += 1
@@ -366,5 +415,7 @@ def main():
         fh = wandio.open(opts.file) if opts.file else sys.stdin
         for line in fh:
             fields = line.strip().split(" ")
+            # example:
+            # file tagger moas /data/xxxx 10000000
             ann = build_from_txt(fields[0], " ".join(fields[1:]))
             announcer.announce(ann)

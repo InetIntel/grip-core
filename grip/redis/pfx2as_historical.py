@@ -63,8 +63,8 @@ WIP_PFX_KEY_TMPL = "PFX:HIST:WIP:IPV4:PFX:%s"
 MIN_DAILY_DURATION = 6 * 3600
 
 # TODO: consider abstracting some of this code that is common to newcomer
-SWIFT_CONTAINER = "bgp-hijacks-pfx-origins"
-SWIFT_OBJ_TMPL = "year=%04d/month=%02d/day=%02d/hour=%02d/pfx-origins.%d.gz"
+PFX_ORIGINS_DATA_DIRECTORY = "/data/bgp/live/pfx-origins/production"
+PFX_ORIGINS_FILE_NAME_TMPL = "year=%04d/month=%02d/day=%02d/hour=%02d/pfx-origins.%d.gz"
 TIME_GRANULARITY = 300
 DEFAULT_WINDOW_DAYS = 365
 
@@ -186,10 +186,6 @@ class Pfx2AsHistorical:
                     # update the duration for this pfx/asn combo
                     pipe.zincrby(WIP_PFX_KEY_TMPL % bin_pfx, new_asn,
                                  TIME_GRANULARITY)
-        except swiftclient.exceptions.ClientException as e:
-            logging.error("Could not read pfx-origin file '%s'" % path)
-            logging.error(e.msg)
-            return
         except IOError as e:
             logging.error("Could not read pfx-origin file '%s'" % path)
             logging.error("I/O error: %s" % e.strerror)
@@ -204,9 +200,11 @@ class Pfx2AsHistorical:
     # TODO: consider moving this to the helper class
     def insert_pfx_timestamp(self, unix_ts, promote=False, disable_promote=False):
         ts = datetime.datetime.utcfromtimestamp(unix_ts)
-        swift_obj = SWIFT_OBJ_TMPL % (ts.year, ts.month, ts.day, ts.hour, unix_ts)
-        swift_path = "swift://%s/%s" % (SWIFT_CONTAINER, swift_obj)
-        self.insert_pfx_file(swift_path, force_promote=promote, disable_promote=disable_promote)
+        # swift_obj = SWIFT_OBJ_TMPL % (ts.year, ts.month, ts.day, ts.hour, unix_ts)
+        # swift_path = "swift://%s/%s" % (SWIFT_CONTAINER, swift_obj)
+        data_file_name = PFX_ORIGINS_FILE_NAME_TMPL % (ts.year, ts.month, ts.day, ts.hour, unix_ts)
+        data_file_path = "%s/%s" % (PFX_ORIGINS_DATA_DIRECTORY, data_file_name)
+        self.insert_pfx_file(data_file_path, force_promote=promote, disable_promote=disable_promote)
 
     def fix_ranges(self):
         """

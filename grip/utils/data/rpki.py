@@ -187,6 +187,8 @@ class RpkiUtils:
 
         # find candidate ROAs
         from itertools import chain
+        if self.radix is None:
+            return RpkiValidationStatus.UNKNOWN
         candidate_roas = list(chain.from_iterable([n.data["roas"] for n in self.radix.search_covering(pfx)]))
 
         # if no matching ROA for the prefix found, the status is UNKNOWN

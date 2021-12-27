@@ -35,16 +35,20 @@
 import logging
 import os
 
-import swiftclient
 import wandio
 from radix import Radix
-from swiftclient.service import SwiftService, SwiftError
+from itertools import chain
+from glob import glob
+from ..utils.fs import fs_generate_file_list, fs_get_timestamp_from_file_path
 
+# TODO allow this to be specified by caller?
+# XXX what about historical data, is that relevant here?
+PATH="/data/bgp/live/pfx-origins/production/"
 
 class Pfx2AsNewcomerLocal:
     """
     Localized version of the pfx2as lookup for 24 hour window
-    The data is coming from directly loading pfx-origin files from swift into memory.
+    The data is coming from directly loading pfx-origin files from the file system into memory.
     """
 
     def __init__(self, exact_match=True, datafile=None):
@@ -52,7 +56,7 @@ class Pfx2AsNewcomerLocal:
         Constructor for newcomer dataset in-memory version.
 
         :param exact_match:
-        :param datafile: path to a pfx-to-origin data file. do not use swift if provided.
+        :param datafile: path to a pfx-to-origin data file.
         """
         # initialize class-wide variables
         self.exact_match = exact_match
@@ -71,35 +75,17 @@ class Pfx2AsNewcomerLocal:
 
         if datafile:
             self.datafile = datafile
-            self.swift = None
-        else:
-            # connect to swift first
-            self.swift = SwiftService({
-                "auth_version": '3',
-                "os_username": os.environ.get('OS_USERNAME'),
-                "os_password": os.environ.get('OS_PASSWORD'),
-                "os_project_name": os.environ.get('OS_PROJECT_NAME'),
-                "os_auth_url": os.environ.get('OS_AUTH_URL'),
-            })
 
-    def _load_swift_files_list(self):
+    def _load_files_list(self):
         # load all pfx-origin files in first
         logging.info("Updating list of pfx-origins files")
-        try:
-            list_parts_gen = self.swift.list(container="bgp-hijacks-pfx-origins")
-            for page in list_parts_gen:
-                if page["success"]:
-                    for item in page["listing"]:
-                        # year=2015/month=01/day=06/hour=09/pfx-origins.1420536000.gz
-                        if item["bytes"] < 10000:
-                            continue
-                        i_name = item["name"]
-                        timestamp = int(i_name.split("/")[4].split(".")[1])
-                        self.pfx_origin_files[timestamp] = i_name
-                else:
-                    raise page["error"]
-        except SwiftError as e:
-            os.error(e.value)
+
+        files = fs_generate_file_list(PATH)
+
+        for f in files:
+            timestamp = fs_get_timestamp_from_file_path(f)
+            self.pfx_origin_files[timestamp] = f
+
 
     def _init_data(self):
         if self.exact_match:
@@ -143,10 +129,6 @@ class Pfx2AsNewcomerLocal:
                         self.as2pfx_dict[new_asn] = set()
                     self.as2pfx_dict[new_asn].add(prefix)
 
-        except swiftclient.exceptions.ClientException as e:
-            logging.error("Could not read pfx-origin file '%s'" % path)
-            logging.error(e.msg)
-            return
         except IOError as e:
             logging.error("Could not read pfx-origin file '%s'" % path)
             logging.error("I/O error: %s" % e.strerror)
@@ -169,14 +151,14 @@ class Pfx2AsNewcomerLocal:
                 return
 
             if not self.pfx_origin_files:
-                # load swift file list if not loaded yet
-                self._load_swift_files_list()
+                # load file list if not loaded yet
+                self._load_files_list()
                 self.sorted_file_ts = sorted(self.pfx_origin_files.keys())
 
             most_recent_ts = max([ts for ts in self.sorted_file_ts if ts < timestamp])
 
             # we need to load a new pfx_origins file
-            self._load_pfx_file("swift://bgp-hijacks-pfx-origins/{}".format(self.pfx_origin_files[most_recent_ts]))
+            self._load_pfx_file(self.pfx_origin_files[most_recent_ts])
             self.view_timestamp = int(timestamp)
 
     # noinspection PyUnusedLocal
