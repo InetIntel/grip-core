@@ -1,0 +1,22 @@
+pywandio>=0.2.5
+python-dateutil
+py-radix
+six
+sqlalchemy
+psycopg2-binary # require libpq-dev installed
+python-swiftclient
+# confluent_kafka # on Ubuntu, install it with `apt install python3-confluent-kafka`
+ripe.atlas.cousteau
+netaddr
+filelock
+fuzzywuzzy
+elasticsearch>=7.0.4
+nltk
+requests
+flask-restful
+numpy
+python-Levenshtein
+scipy
+future
+redis==2.10.6
+python-dotenv
