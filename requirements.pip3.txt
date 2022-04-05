@@ -10,7 +10,7 @@ ripe.atlas.cousteau
 netaddr
 filelock
 fuzzywuzzy
-elasticsearch>=7.0.4
+elasticsearch==7.16.1
 nltk
 requests
 flask-restful
