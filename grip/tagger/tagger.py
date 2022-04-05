@@ -90,6 +90,7 @@ class Tagger(object):
         self.finisher = Finisher(event_type=name, load_unfinished=options.get("load_unfinished", True)) \
             if options.get("enable_finisher", False) else None
         pfx2as_datafile = options.get("pfx2as_file", None)
+        pfx2as_path = options.get("pfx_origins_path", None)
         self.output_file = options.get("output_file", None)
         self.rpki_data_dir = options.get("rpki_data_dir", grip.common.RPKI_DATA_DIR)
 
@@ -106,7 +107,7 @@ class Tagger(object):
             "pfx2asn_historical": Pfx2AsHistorical() if not self.offsite_mode else None,
             "asndrop": AsnDrop() if not self.offsite_mode else None,
             # globally available datasets
-            "pfx2asn_newcomer_local": Pfx2AsNewcomerLocal(datafile=pfx2as_datafile),
+            "pfx2asn_newcomer_local": Pfx2AsNewcomerLocal(datapath=pfx2as_path, datafile=pfx2as_datafile),
             "rpki": RpkiUtils(self.rpki_data_dir),
             "as_rank": AsRankUtils(),
             "hegemony": HegemonyUtils(),

@@ -41,9 +41,7 @@ from itertools import chain
 from glob import glob
 from ..utils.fs import fs_generate_file_list, fs_get_timestamp_from_file_path
 
-# TODO allow this to be specified by caller?
-# XXX what about historical data, is that relevant here?
-PATH="/data/bgp/live/pfx-origins/production/"
+LIVE_DATAPATH="/data/bgp/live/pfx-origins/production/"
 
 class Pfx2AsNewcomerLocal:
     """
@@ -51,7 +49,7 @@ class Pfx2AsNewcomerLocal:
     The data is coming from directly loading pfx-origin files from the file system into memory.
     """
 
-    def __init__(self, exact_match=True, datafile=None):
+    def __init__(self, datapath=None, exact_match=True, datafile=None):
         """
         Constructor for newcomer dataset in-memory version.
 
@@ -76,11 +74,16 @@ class Pfx2AsNewcomerLocal:
         if datafile:
             self.datafile = datafile
 
+        if datapath:
+            self.datapath = datapath
+        else:
+            self.datapath = LIVE_DATAPATH
+
     def _load_files_list(self):
         # load all pfx-origin files in first
         logging.info("Updating list of pfx-origins files")
 
-        files = fs_generate_file_list(PATH)
+        files = fs_generate_file_list(self.datapath)
 
         for f in files:
             timestamp = fs_get_timestamp_from_file_path(f)

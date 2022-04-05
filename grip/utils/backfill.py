@@ -94,6 +94,7 @@ class BackfillEngine:
         self.enable_finisher = enable_finisher
         self.debug = debug
         self.history_path = datadir + "/" + event_type
+        self.base_datadir = datadir
 
         # helpers
         # self.swift = SwiftUtils()
@@ -132,7 +133,8 @@ class BackfillEngine:
         assert (self.start is not None)
 
         tagger = CLASSIFIERS[self.event_type](options={
-            "pfx_origins_file": None,
+            "pfx2as_file": None,
+            "pfx_origins_path": self.base_datadir + "/pfx-origins",
             "in_memory_data": True,
             "enable_finisher": self.enable_finisher,
             "force_process_view": True,  # make sure not to skip views that are already processed
