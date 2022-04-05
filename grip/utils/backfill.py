@@ -52,7 +52,7 @@ from grip.tagger.tagger_submoas import SubMoasTagger
 from grip.tagger.tags import tagshelper
 from grip.utils.data.elastic import ElasticConn
 from grip.utils.data.elastic_queries import query_in_range
-# from grip.utils.swift import SwiftUtils
+from grip.utils.fs import fs_generate_file_list, fs_get_timestamp_from_file_path
 
 CLASSIFIERS = {
     "defcon": DefconTagger,
@@ -83,6 +83,7 @@ class BackfillEngine:
                  end,
                  enable_finisher,
                  debug,
+                 datadir,
                  ):
 
         # backfill configs
@@ -92,6 +93,7 @@ class BackfillEngine:
         self.end = end
         self.enable_finisher = enable_finisher
         self.debug = debug
+        self.history_path = datadir + "/" + event_type
 
         # helpers
         # self.swift = SwiftUtils()
@@ -143,30 +145,40 @@ class BackfillEngine:
         logging.info(self._get_parameters())
 
         # gather all consumer data files on swift first
-        swift_files = []
+        toprocess_files = []
         cache_files = []
-        for swift_file_name in self.swift.swift_files_generator("bgp-hijacks-{}".format(self.event_type)):
-            ts = int(swift_file_name.split("/")[4].split('.')[1])
 
-            swift_file_name = "swift://bgp-hijacks-{}/{}".format(self.event_type, swift_file_name)
+        mustbegin = self.history_path + "/year="
+
+        for fname in fs_generate_file_list(self.history_path):
+            # only use files from the "year=XXXX/month=XX/day=XX" hierarchy
+            if not fname.startswith(mustbegin):
+                continue
+
+
+            ts = fs_get_timestamp_from_file_path(fname)
+
             if ts < self.start:
                 if ts >= self.start - tagger.window.window_size:
-                    cache_files.append(swift_file_name)
+                    cache_files.append(fname)
                 continue
             if self.end and ts > self.end:
                 continue
-            swift_files.append(swift_file_name)
+            toprocess_files.append(fname)
+
+        toprocess_files.sort()
+        cache_files.sort()
 
         logging.info("caching total of %d consumer files" % len(cache_files))
         for fn in cache_files:
             tagger.cache_consumer_file(fn)
 
-        logging.info("processing total of %d consumer files" % len(swift_files))
+        logging.info("processing total of %d consumer files" % len(toprocess_files))
         # let tagger process each consumer file one by one
-        for swift_file_name in swift_files:
-            view_ts = int(swift_file_name.split(".")[-3])
-            logging.info("backfilling events on time {}".format(view_ts))
-            tagger.process_consumer_file(swift_file_name)
+        for fn in toprocess_files:
+            ts = fs_get_timestamp_from_file_path(fn)
+            logging.info("backfilling events on time {} using {}".format(ts, fn))
+            tagger.process_consumer_file(fn)
 
 
 def find_unretagged_timerange(event_type, start_ts, end_ts, modified_after):
@@ -214,7 +226,8 @@ def find_unretagged_timerange(event_type, start_ts, end_ts, modified_after):
             of.write("%d,%s\n" % (ts, processed))
 
 
-def process(t, traceroutes, start, end, enable_finisher, debug, elastic):
+def process(t, traceroutes, start, end, enable_finisher, debug, elastic,
+        datadir):
     """
     Parallel processing main thread. It creates a BackfillEngine instance and start processing.
     :param t: Event type
@@ -223,9 +236,11 @@ def process(t, traceroutes, start, end, enable_finisher, debug, elastic):
     :param end: end timestamp
     :param enable_finisher: whether to enable finisher
     :param debug: whether to enable debug mode
+    :param datadir: directory to search for input files to process
     :return:
     """
-    engine = BackfillEngine(t, traceroutes, start, end, enable_finisher, debug)
+    engine = BackfillEngine(t, traceroutes, start, end, enable_finisher, debug,
+            datadir)
     engine.backfill_with_consumer_data()
 
 
@@ -343,6 +358,8 @@ def main():
                         help="Whether to enable debug mode, events will be committed to -test- indices")
     parser.add_argument("-S", "--elastic", action="store_true", default=False,
                         help="Retagging events already on ElasticSearch")
+    parser.add_argument("-D", "--datadir", default="/data/bgp/historical",
+                        help="Base directory to search for historical data to be reprocessed (ignored if -S is set)")
 
     opts = parser.parse_args()
 
@@ -407,7 +424,7 @@ def main():
     args = []
     while cur_ts < opts.end:
         cur_end = cur_ts + step
-        args.append((opts.type, opts.traceroutes, cur_ts, cur_end, opts.enable_finisher, opts.debug))
+        args.append((opts.type, opts.traceroutes, cur_ts, cur_end, opts.enable_finisher, opts.debug, opts.elastic, opts.datadir))
         cur_ts += step
     print(args)
 
