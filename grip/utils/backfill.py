@@ -84,6 +84,8 @@ class BackfillEngine:
                  enable_finisher,
                  debug,
                  datadir,
+                 pfxdir,
+                 rpkidir,
                  ):
 
         # backfill configs
@@ -95,6 +97,8 @@ class BackfillEngine:
         self.debug = debug
         self.history_path = datadir + "/" + event_type
         self.base_datadir = datadir
+        self.pfx_datadir = pfxdir
+        self.rpki_datadir = rpkidir
 
         # helpers
         # self.swift = SwiftUtils()
@@ -133,8 +137,11 @@ class BackfillEngine:
         assert (self.start is not None)
 
         tagger = CLASSIFIERS[self.event_type](options={
+            #"offsite_mode": True,
+            #"output_file": "/home/salcock3/shanetest-" + str(self.start),
             "pfx2as_file": None,
-            "pfx_origins_path": self.base_datadir + "/pfx-origins",
+            "pfx_origins_path": self.pfx_datadir + "/pfx-origins",
+            "rpki_data_dir": self.rpki_datadir + "/rpki/roas",
             "in_memory_data": True,
             "enable_finisher": self.enable_finisher,
             "force_process_view": True,  # make sure not to skip views that are already processed
@@ -229,7 +236,7 @@ def find_unretagged_timerange(event_type, start_ts, end_ts, modified_after):
 
 
 def process(t, traceroutes, start, end, enable_finisher, debug, elastic,
-        datadir):
+        datadir, pfxdir, rpkidir):
     """
     Parallel processing main thread. It creates a BackfillEngine instance and start processing.
     :param t: Event type
@@ -239,10 +246,12 @@ def process(t, traceroutes, start, end, enable_finisher, debug, elastic,
     :param enable_finisher: whether to enable finisher
     :param debug: whether to enable debug mode
     :param datadir: directory to search for input files to process
+    :param pfxdir: directory to search for pfx-origin files
+    :param rpkidir: directory to search for RPKI files
     :return:
     """
     engine = BackfillEngine(t, traceroutes, start, end, enable_finisher, debug,
-            datadir)
+            datadir, pfxdir, rpkidir)
     engine.backfill_with_consumer_data()
 
 
@@ -362,6 +371,10 @@ def main():
                         help="Retagging events already on ElasticSearch")
     parser.add_argument("-D", "--datadir", default="/data/bgp/historical",
                         help="Base directory to search for historical data to be reprocessed (ignored if -S is set)")
+    parser.add_argument("-P", "--pfxorigindir", default="/data/bgp/historical",
+                        help="Base directory to search for pfx2origin data to retag the data with")
+    parser.add_argument("-R", "--rpkidir", default="/data/bgp/rpki",
+                        help="Base directory to search for RPKI data to retag the data with")
 
     opts = parser.parse_args()
 
@@ -426,7 +439,7 @@ def main():
     args = []
     while cur_ts < opts.end:
         cur_end = cur_ts + step
-        args.append((opts.type, opts.traceroutes, cur_ts, cur_end, opts.enable_finisher, opts.debug, opts.elastic, opts.datadir))
+        args.append((opts.type, opts.traceroutes, cur_ts, cur_end, opts.enable_finisher, opts.debug, opts.elastic, opts.datadir, opts.pfxorigindir, opts.rpkidir))
         cur_ts += step
     print(args)
 
