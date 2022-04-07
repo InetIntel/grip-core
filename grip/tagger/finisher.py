@@ -65,18 +65,21 @@ def extract_pfx_event_feature(pfx_event, event_type=None):
 
 class Finisher:
 
-    def __init__(self, event_type, load_unfinished=True, index_pattern=None):
+    def __init__(self, event_type, load_unfinished=True, index_pattern=None,
+                debug=False):
         assert (event_type in ["moas", "submoas", "defcon", "edges"])
         self.event_type = event_type
         self.esconn = ElasticConn()
 
+        self.debug = debug
         self.unfinished_events = {}
         self.unfinished_pfx_events = {}
 
         if index_pattern:
             self.index_name_pattern = index_pattern
         else:
-            self.index_name_pattern = self.esconn.get_index_name(event_type)
+            self.index_name_pattern = self.esconn.get_index_name(event_type,
+                    debug=self.debug)
 
         if load_unfinished:
             self.load_unfinished_events(event_type)
@@ -158,7 +161,8 @@ class Finisher:
                 self.unfinished_pfx_events[feature].add((view_ts, event_id))
 
             self.unfinished_events[event_id] = {
-                "index": self.esconn.infer_index_name_by_id(event_id),
+                "index": self.esconn.infer_index_name_by_id(event_id,
+                        debug=self.debug),
                 "unfinished": list(features),
                 "finished": {}
             }
@@ -226,7 +230,8 @@ class Finisher:
                 self.unfinished_events.pop(event_id)
                 event_finished = True
 
-            res_event = self.esconn.get_event_by_id(event_id=event_id)
+            res_event = self.esconn.get_event_by_id(event_id=event_id,
+                        debug=self.debug)
             if res_event is None:
                 logging.warning("cannot retrieve {} for marking it as finished", event_id)
                 continue
@@ -247,12 +252,14 @@ class Finisher:
                 self.unchecked_transition_events[finished_ts].append(res_event)
 
             # update event on elasticsearch.
-            self.esconn.index_event(event=res_event, update=True)
+            self.esconn.index_event(event=res_event, update=True,
+                        debug=self.debug)
             if is_transition:
                 # only send signal for reinference if it is a transition event (MOAS only)
                 kafka_msg = EventOnElasticMsg(
                     sender="tagger",
-                    es_index=self.esconn.infer_index_name_by_id(event.event_id),
+                    es_index=self.esconn.infer_index_name_by_id(event.event_id,
+                                debug=self.debug),
                     es_id=event.event_id,
                     tr_worthy=False,  # do not trigger active probing actions
                 )
@@ -273,11 +280,12 @@ class Finisher:
                 for event in self.unchecked_transition_events[view_ts]:
                     is_transition = self._check_transition(event=event)
                     if is_transition:
-                        self.esconn.index_event(event=event, update=True)
+                        self.esconn.index_event(event=event, update=True,
+                                debug=self.debug)
                         # only send signal for reinference if it is a transition event (MOAS only)
                         kafka_msg = EventOnElasticMsg(
                             sender="tagger",
-                            es_index=self.esconn.infer_index_name_by_id(event.event_id),
+                            es_index=self.esconn.infer_index_name_by_id(event.event_id, debug=self.debug),
                             es_id=event.event_id,
                             tr_worthy=False,  # do not trigger active probing actions
                         )
@@ -293,7 +301,8 @@ class Finisher:
     def process_new_event(self, event, index_name=None):
         assert (isinstance(event, Event))
         if index_name is None:
-            index_name = self.esconn.infer_index_name_by_id(event.event_id)
+            index_name = self.esconn.infer_index_name_by_id(event.event_id,
+                        debug=self.debug)
         features = set()
         for pfx_event in event.pfx_events:
             assert (isinstance(pfx_event, PfxEvent))

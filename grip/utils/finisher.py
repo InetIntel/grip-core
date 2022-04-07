@@ -80,8 +80,9 @@ class FinisherEngine:
             finished_event.add_pfx_event(pfx_event)
         return finished_event
 
-    def run_finisher(self, start_ts=None, end_ts=None):
-        finisher = Finisher(event_type=self.event_type, load_unfinished=False)
+    def run_finisher(self, start_ts=None, end_ts=None, debug=False):
+        finisher = Finisher(event_type=self.event_type, load_unfinished=False,
+                debug=debug)
         finisher.load_unfinished_events(self.event_type, start_ts=start_ts, end_ts=end_ts)
         if not finisher.unfinished_events:
             # no unfinished events
@@ -113,9 +114,9 @@ class FinisherEngine:
                 minimum_ts = int(min(finisher.unfinished_events).split("-")[1])
 
 
-def run_process(event_type, start_ts, end_ts, datadir):
+def run_process(event_type, start_ts, end_ts, datadir, debug):
     finisher = FinisherEngine(event_type, datadir)
-    finisher.run_finisher(start_ts=start_ts, end_ts=end_ts)
+    finisher.run_finisher(start_ts=start_ts, end_ts=end_ts, debug=debug)
 
 
 def main():
@@ -128,6 +129,8 @@ def main():
                         help="start time for rerun (unix time)")
     parser.add_argument("-e", "--end_ts", type=int, nargs="?",
                         help="end time for rerun (unix time)")
+    parser.add_argument("-d", "--debug", action="store_true", default=False,
+                        help="Run in debug mode -- events will be read and re-written to -test- indices")
     parser.add_argument("-D", "--datadir", type=str,
                         default="/data/bgp/historical",
                         help="Base directory to search for historical consumer data with unfinished events")
@@ -151,7 +154,8 @@ def main():
     processes = opts.processes
     if processes == 1:
         # single-process runner
-        run_process(opts.type, opts.start_ts, opts.end_ts, opts.datadir)
+        run_process(opts.type, opts.start_ts, opts.end_ts, opts.datadir,
+                opts.debug)
         return
 
     # multi-process runner
@@ -162,7 +166,7 @@ def main():
     args = []
     while cur_ts < opts.end_ts:
         cur_end = cur_ts + step
-        args.append((opts.type, cur_ts, cur_end, opts.datadir))
+        args.append((opts.type, cur_ts, cur_end, opts.datadir, opts.debug))
         cur_ts += step
     logging.info(args)
 
