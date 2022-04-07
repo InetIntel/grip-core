@@ -80,9 +80,9 @@ class FinisherEngine:
             finished_event.add_pfx_event(pfx_event)
         return finished_event
 
-    def run_finisher(self, start_ts=None, end_ts=None, debug=False):
+    def run_finisher(self, pfx_datadir, start_ts=None, end_ts=None, debug=False):
         finisher = Finisher(event_type=self.event_type, load_unfinished=False,
-                debug=debug)
+                debug=debug, pfx_datadir=pfx_datadir)
         finisher.load_unfinished_events(self.event_type, start_ts=start_ts, end_ts=end_ts)
         if not finisher.unfinished_events:
             # no unfinished events
@@ -114,9 +114,9 @@ class FinisherEngine:
                 minimum_ts = int(min(finisher.unfinished_events).split("-")[1])
 
 
-def run_process(event_type, start_ts, end_ts, datadir, debug):
+def run_process(event_type, start_ts, end_ts, datadir, debug, pfx_datadir):
     finisher = FinisherEngine(event_type, datadir)
-    finisher.run_finisher(start_ts=start_ts, end_ts=end_ts, debug=debug)
+    finisher.run_finisher(pfx_datadir, start_ts=start_ts, end_ts=end_ts, debug=debug)
 
 
 def main():
@@ -134,6 +134,9 @@ def main():
     parser.add_argument("-D", "--datadir", type=str,
                         default="/data/bgp/historical",
                         help="Base directory to search for historical consumer data with unfinished events")
+    parser.add_argument("-P", "--pfx-datadir", type=str,
+                        default="/data/bgp/historical",
+                        help="Base directory to search for pfx-origins data")
     parser.add_argument('-p', '--processes', nargs="?", type=int, required=False,
                         default=1,
                         help="Number of processes to divide the time range and run, specify 0 to use all available cores")
@@ -155,7 +158,7 @@ def main():
     if processes == 1:
         # single-process runner
         run_process(opts.type, opts.start_ts, opts.end_ts, opts.datadir,
-                opts.debug)
+                opts.debug, opts.pfx_datadir)
         return
 
     # multi-process runner
@@ -166,7 +169,8 @@ def main():
     args = []
     while cur_ts < opts.end_ts:
         cur_end = cur_ts + step
-        args.append((opts.type, cur_ts, cur_end, opts.datadir, opts.debug))
+        args.append((opts.type, cur_ts, cur_end, opts.datadir, opts.debug,
+                opts.pfx_datadir))
         cur_ts += step
     logging.info(args)
 

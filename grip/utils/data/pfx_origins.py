@@ -1,29 +1,29 @@
 import datetime
 import logging
 
-import swiftclient
 import wandio
 
 from grip import common
 
 
-def get_pfx_origins_path(timestamp):
+def get_pfx_origins_path(basedir, timestamp):
     # year=2015/month=01/day=06/hour=09/pfx-origins.1420536000.gz
     timestamp = int(timestamp)
     time = datetime.datetime.utcfromtimestamp(timestamp)
-    path = "swift://bgp-hijacks-pfx-origins/year={}/month={:02}/day={:02}/hour={:02}/pfx-origins.{}.gz".format(
+
+    path = basedir + "/pfx-origins/year={}/month={:02}/day={:02}/hour={:02}/pfx-origins.{}.gz".format(
         time.year, time.month, time.day, time.hour, timestamp
     )
     return path
 
 
-def load_pfx_file(timestamp):
-    path = get_pfx_origins_path(timestamp)
+def load_pfx_file(basedir, timestamp):
+    path = get_pfx_origins_path(basedir, timestamp)
     pfx2as_dict = {}
 
     logging.info("pfx_origins.py: Loading pfx2as mappings into memory from %s" % path)
     try:
-        with wandio.open(path, options=common.SWIFT_AUTH_OPTIONS) as fh:
+        with wandio.open(path) as fh:
             for line in fh:
                 # 1476104400|115.116.0.0/16|4755|4755|STABLE
                 ts, prefix, old_asn, new_asn, label = line.strip().split("|")
@@ -42,10 +42,6 @@ def load_pfx_file(timestamp):
 
                 pfx2as_dict[prefix] = ases
 
-    except swiftclient.exceptions.ClientException as e:
-        logging.warn("Could not read pfx-origin file '%s'" % path)
-        logging.warn(e.msg)
-        return None
     except IOError as e:
         logging.error("Could not read pfx-origin file '%s'" % path)
         logging.error("I/O error: %s" % e.strerror)

@@ -66,7 +66,7 @@ def extract_pfx_event_feature(pfx_event, event_type=None):
 class Finisher:
 
     def __init__(self, event_type, load_unfinished=True, index_pattern=None,
-                debug=False):
+                debug=False, pfx_datadir="/data/bgp/historical"):
         assert (event_type in ["moas", "submoas", "defcon", "edges"])
         self.event_type = event_type
         self.esconn = ElasticConn()
@@ -84,7 +84,7 @@ class Finisher:
         if load_unfinished:
             self.load_unfinished_events(event_type)
 
-        self.transition_locator = TransitionLocator(event_type)
+        self.transition_locator = TransitionLocator(event_type, pfx_datadir)
 
         self.unchecked_transition_events = {}
         kafka_template = KAFKA_TOPIC_TEMPLATE

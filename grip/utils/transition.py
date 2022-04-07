@@ -19,7 +19,7 @@ class TransitionLocator:
     3. add special tags to such events
     """
 
-    def __init__(self, event_type):
+    def __init__(self, event_type, pfx_datadir="/data/bgp/historical"):
         self.es_conn = ElasticConn()
         self.pfx_origins = {
             "time": None,
@@ -29,6 +29,7 @@ class TransitionLocator:
         self.kafka_producer_topic = kafka_template % ("tagger", event_type)
         self.kafka_producer = KafkaHelper()
         self.kafka_producer.init_producer(topic=self.kafka_producer_topic)
+        self.pfx_datadir = pfx_datadir
 
     def _update_pfx_origins(self, timestamp):
         assert (isinstance(timestamp, int))
@@ -37,7 +38,7 @@ class TransitionLocator:
         if self.pfx_origins["time"] != ts:
             # if the current dataset's timestamp is not what we wanted, we need to reload
 
-            pfx2as = load_pfx_file(ts)
+            pfx2as = load_pfx_file(self.pfx_datadir, ts)
             if pfx2as is None:
                 raise ValueError("data not available yet")
             self.pfx_origins["pfx2as"] = pfx2as
