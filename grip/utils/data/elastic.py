@@ -63,7 +63,7 @@ class ElasticConn:
         self.es = Elasticsearch([
             {'host': 'panarea1.cc.gatech.edu', 'port': 9200},
             {'host': 'panarea2.cc.gatech.edu', 'port': 9200}],
-            timeout=10, max_retries=3, retry_on_timeout=True
+            timeout=40, max_retries=10, retry_on_timeout=True
         )
         if not self.es.ping():
             raise ValueError("Connection failed")
