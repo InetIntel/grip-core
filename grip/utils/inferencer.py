@@ -89,7 +89,7 @@ class InferenceRunner:
             assert (isinstance(event, Event))
             if self._event_in_range(event, inserted_before, inserted_after):
                 event.summary.clear_inference()
-                self.collector.infer_event(event=event, to_query_asrank=False, to_query_hegemony=False)
+                self.collector.infer_event(event=event, to_query_asrank=True, to_query_hegemony=False)
                 self.esconn.index_event(event, debug=self.debug)
 
     @staticmethod
