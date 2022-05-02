@@ -34,8 +34,6 @@ import argparse
 import datetime
 import logging
 import sys
-
-import swiftclient
 import wandio
 
 from grip.redis.redis_helper import RedisHelper
@@ -43,16 +41,21 @@ from grip.redis.redis_helper import RedisHelper
 ADJ_KEY_TMPL = "ADJ:IPV4:%s"
 TIMESTAMPS_KEY = "ADJ:TS"
 
-SWIFT_CONTAINER = "bgp-hijacks-triplets-weekly"
-SWIFT_OBJ_TMPL = "year=%04d/month=%02d/day=%02d/triplets-weekly.%d.gz"
+OBJ_TMPL = "year=%04d/month=%02d/day=%02d/triplets-weekly.%d.gz"
+DEFAULT_DATADIR="/data/bgp/bgp-hijacks-triplets-weekly"
 
 TIME_GRANULARITY = 7 * 86400
 
 
 class Adjacencies:
 
-    def __init__(self, window_weeks=52, host=None, port=6379, db=2, log_level="INFO"):
+    def __init__(self, window_weeks=52, host=None, port=6379, db=2, log_level="INFO", datadir=None):
         self.window_weeks = int(window_weeks)
+        if datadir is not None:
+            self.datadir = datadir
+        else:
+            self.datadir = DEFAULT_DATADIR
+
         if host is not None:
             self.rh = RedisHelper(host, port, db, log_level)
         else:
@@ -136,10 +139,6 @@ class Adjacencies:
                             pipe.zadd(ADJ_KEY_TMPL % last, ts, "%s:%x" % (this, ts))
                             adj_temp.add((last, this))
                         last = this
-        except swiftclient.exceptions.ClientException as e:
-            logging.error("Could not read pfx-origin file '%s'" % path)
-            logging.error(e.msg)
-            return
         except IOError as e:
             logging.error("Could not read pfx-origin file '%s'" % path)
             logging.error("I/O error: %s" % e.strerror)
@@ -150,9 +149,9 @@ class Adjacencies:
 
     def insert_adj_timestamp(self, unix_ts):
         ts = datetime.datetime.utcfromtimestamp(unix_ts)
-        swift_obj = SWIFT_OBJ_TMPL % (ts.year, ts.month, ts.day, unix_ts)
-        swift_path = "swift://%s/%s" % (SWIFT_CONTAINER, swift_obj)
-        self.insert_adj_file(swift_path)
+        obj = OBJ_TMPL % (ts.year, ts.month, ts.day, unix_ts)
+        file_path = "%s/%s" % (self.datadir, obj)
+        self.insert_adj_file(file_path)
 
     def clean(self, latest_ts):
         pipe = self.rh.get_pipeline()
@@ -225,6 +224,10 @@ def main():
     parser.add_argument('-p', "--redis-port", action="store", default=6379,
                         help='Redis port')
 
+    parser.add_argument('-D', "--data-directory", action="store",
+                        help='Directory to store triplet files',
+                        default=DEFAULT_DATADIR)
+
     parser.add_argument('-d', "--redis-db", action="store",
                         help='Redis database', default=2)
 
@@ -260,7 +263,8 @@ def main():
         opts.redis_host,
         opts.redis_port,
         opts.redis_db,
-        "DEBUG" if opts.verbose else "INFO"
+        "DEBUG" if opts.verbose else "INFO",
+        opts.data_directory
     )
 
     if opts.neighbors:
